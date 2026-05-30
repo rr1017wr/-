@@ -1,0 +1,150 @@
+-- BBQ It GUI Autofarm Script
+-- Auto Buy Meat / Gear + Auto Discard + その他便利機能
+
+local player = game.Players.LocalPlayer
+local rs = game:GetService("ReplicatedStorage")
+local ws = workspace
+local tween = game:GetService("TweenService")
+
+print("BBQ It GUI Script Loaded 🔥")
+
+-- ==================== GUI作成 ====================
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BBQItGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 280, 0, 420)
+MainFrame.Position = UDim2.new(0.5, -140, 0.5, -210)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Parent = ScreenGui
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 50)
+Title.BackgroundColor3 = Color3.fromRGB(255, 100, 0)
+Title.Text = "BBQ It Autofarm GUI"
+Title.TextColor3 = Color3.new(1,1,1)
+Title.TextScaled = true
+Title.Font = Enum.Font.GothamBold
+Title.Parent = MainFrame
+
+-- スクロール用フレーム
+local Scrolling = Instance.new("ScrollingFrame")
+Scrolling.Size = UDim2.new(1, -20, 1, -70)
+Scrolling.Position = UDim2.new(0, 10, 0, 60)
+Scrolling.BackgroundTransparency = 1
+Scrolling.ScrollBarThickness = 6
+Scrolling.Parent = MainFrame
+
+local UIList = Instance.new("UIListLayout")
+UIList.Padding = UDim.new(0, 8)
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Parent = Scrolling
+
+-- トグル作成関数
+local function CreateToggle(name, default)
+    local ToggleFrame = Instance.new("Frame")
+    ToggleFrame.Size = UDim2.new(1, -10, 0, 50)
+    ToggleFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+    ToggleFrame.Parent = Scrolling
+    
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(0.7, 0, 1, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = name
+    Label.TextColor3 = Color3.new(1,1,1)
+    Label.TextScaled = true
+    Label.Font = Enum.Font.Gotham
+    Label.TextXAlignment = Enum.TextXAlignment.Left
+    Label.Parent = ToggleFrame
+    
+    local Button = Instance.new("TextButton")
+    Button.Size = UDim2.new(0.25, 0, 0.7, 0)
+    Button.Position = UDim2.new(0.72, 0, 0.15, 0)
+    Button.BackgroundColor3 = default and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
+    Button.Text = default and "ON" or "OFF"
+    Button.TextColor3 = Color3.new(1,1,1)
+    Button.TextScaled = true
+    Button.Font = Enum.Font.GothamBold
+    Button.Parent = ToggleFrame
+    
+    local enabled = default
+    
+    Button.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        Button.BackgroundColor3 = enabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(170, 0, 0)
+        Button.Text = enabled and "ON" or "OFF"
+    end)
+    
+    return function() return enabled end
+end
+
+-- ==================== 設定 ====================
+local AutoCook     = CreateToggle("Auto Cook", true)
+local AutoPlate    = CreateToggle("Auto Plate", true)
+local AutoSell     = CreateToggle("Auto Sell", true)
+local AutoDiscard  = CreateToggle("Auto Discard Burnt", true)
+local AutoBuyMeat  = CreateToggle("Auto Buy Meat", true)
+local AutoBuyGear  = CreateToggle("Auto Buy Gear", true)
+
+-- 買うリスト
+local MEATS = {"BasicMeat", "Chicken", "Pork", "Steak"}
+local GEARS = {"GrowthTotem", "GrillUpgrade", "Table", "Smoker"}
+
+-- ==================== メインループ ====================
+task.spawn(function()
+    while true do
+        task.wait(0.4)
+        
+        pcall(function()
+            -- Auto Buy Meat
+            if AutoBuyMeat() then
+                for _, meat in ipairs(MEATS) do
+                    rs.Events.BuyMeat:FireServer(meat)
+                    task.wait(0.6)
+                end
+            end
+            
+            -- Auto Buy Gear
+            if AutoBuyGear() then
+                for _, gear in ipairs(GEARS) do
+                    rs.Events.BuyGear:FireServer(gear)
+                    task.wait(0.7)
+                end
+            end
+            
+            -- Auto Cook
+            if AutoCook() then
+                for _, grill in ipairs(ws.Grills:GetChildren()) do
+                    rs.Events.Cook:FireServer(grill)
+                end
+            end
+            
+            -- Auto Discard
+            if AutoDiscard() then
+                for _, item in ipairs(player.Backpack:GetChildren()) do
+                    local n = item.Name:lower()
+                    if n:find("burnt") or n:find("bad") or n:find("rotten") then
+                        rs.Events.Discard:FireServer(item)
+                    end
+                end
+            end
+            
+            -- Auto Plate & Sell
+            if AutoPlate() then
+                rs.Events.PlateFood:FireServer()
+            end
+            if AutoSell() then
+                for _, cust in ipairs(ws.Customers:GetChildren()) do
+                    rs.Events.SellFood:FireServer(cust)
+                end
+            end
+        end)
+    end
+end)
+
+print("GUIが表示されました！ドラッグして移動できます。")
